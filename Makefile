@@ -1,7 +1,7 @@
 .PHONY: format-code
 
 start-weather-agent:
-	python main.py
+	python -m venv venv && source venv/bin/activate && pip install -r requirements.txt && python main.py
 
 format-code:
 	@echo "🔧 Formatting Python files with black and isort..."
