@@ -13,3 +13,6 @@ format-code:
 	done
 	@echo "✅ Formatting complete."
 
+clean-cache:
+	find ./ -type d \( -name '__pycache__' -o -name '.cache' \) -exec rm -rf {} +
+

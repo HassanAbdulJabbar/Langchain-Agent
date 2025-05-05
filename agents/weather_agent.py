@@ -100,28 +100,15 @@ class WeatherAgent:
             except Exception:
                 pass
 
-            # Use the LLM to generate a natural response based on the query and weather data
-            response = self.llm.invoke(
-                f"""Given the following weather data and user query, provide a natural, conversational response.
-                Be direct and specific to what the user is asking. If it's a yes/no question, answer directly.
-                If it's asking for specific information, provide only that information.
-                If it's a general question, provide a comprehensive but concise answer.
+            # Format the response based on the query type
+            if "temperature" in query.lower():
+                response = f"The current temperature in {location} is {weather_data['temperature']}°C."
+            elif "rain" in query.lower():
+                response = f"In {location}, the current conditions are {weather_data['description']}."
+            else:
+                response = f"Current weather in {location}: {weather_data['description']}, Temperature: {weather_data['temperature']}°C, Humidity: {weather_data['humidity']}%, Wind Speed: {weather_data['wind_speed']} km/h."
 
-                Weather Data:
-                - Location: {weather_data['location']}
-                - Temperature: {weather_data['temperature']}°C
-                - Humidity: {weather_data['humidity']}%
-                - Wind Speed: {weather_data['wind_speed']} km/h
-                - Current Conditions: {weather_data['description']}
-                {'- Air Quality Index: ' + str(weather_data.get('air_quality', {}).get('aqi', 'N/A')) if 'air_quality' in weather_data else ''}
-
-                User Query: {query}
-
-                Provide a natural, conversational response that directly answers the user's question.
-                """
-            )
-
-            return response.strip()
+            return response
 
         except Exception as e:
             return f"Sorry, I encountered an error: {str(e)}. Please try rephrasing your question."
@@ -162,7 +149,8 @@ class WeatherAgent:
                 if potential_location in [city.lower() for city in pakistani_cities]:
                     return potential_location.capitalize()
 
-        return ""
+        # Default to Islamabad if no location is specified
+        return "Islamabad"
 
     def get_weather_recommendations(self, location: str) -> Dict[str, Any]:
         """Get personalized weather recommendations based on current conditions"""

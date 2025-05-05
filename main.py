@@ -13,6 +13,10 @@ class WeatherApp:
         self.llm = LLM_UTIL.get_llm()
         self.weather_agent = WeatherAgent(self.llm)
         self.command_handler = CommandHandler(self.weather_agent)
+        # Initialize the agent, tool selector, and review agent
+        self.agent, self.tool_selector, self.review_agent = create_hybrid_agent(
+            verbose=True
+        )
 
     def setup(self) -> None:
         """Initialize the application"""
@@ -44,8 +48,10 @@ class WeatherApp:
                     break
 
                 formatCLI.print_thinking()
-                agent = create_hybrid_agent(verbose=True)
-                response = route_query(user_input, agent)
+                # Use the pre-initialized agent, tool selector, and review agent
+                response = route_query(
+                    user_input, self.agent, self.tool_selector, self.review_agent
+                )
                 print(formatCLI.format_agent_output(response))
 
             except Exception as e:
