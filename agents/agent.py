@@ -6,6 +6,7 @@ from langchain.memory import ConversationBufferMemory
 from langchain.prompts import PromptTemplate
 from langchain.tools import BaseTool, Tool
 from langchain_community.tools import TavilySearchResults
+from langchain_openai import ChatOpenAI
 
 from agents.weather_agent import WeatherAgent
 from utils.llm_util import LLM_UTIL
@@ -62,26 +63,27 @@ class ToolSelector:
     def __init__(self, tools: List[BaseTool]):
         self.tools = tools
         self.tool_descriptions = {tool.name: tool.description for tool in tools}
+        # Initialize the LLM for routing
+        self.router_llm = ChatOpenAI(temperature=0)
+        # Initialize the agent with the tools
+        self.router_agent = initialize_agent(
+            tools,
+            self.router_llm,
+            agent=AgentType.OPENAI_FUNCTIONS,
+            verbose=False  # Set verbose to False to remove observation logs
+        )
 
     def select_tool(self, query: str) -> str:
-        """Select the most appropriate tool based on the query."""
-        # Simple keyword-based selection
-        query_lower = query.lower()
-
-        # Weather-related keywords
-        weather_keywords = [
-            "weather",
-            "temperature",
-            "forecast",
-            "rain",
-            "snow",
-            "humidity",
-        ]
-        if any(keyword in query_lower for keyword in weather_keywords):
-            return "weather_agent"
-
-        # Default to web search for everything else
-        return "web_search"
+        """Select the most appropriate tool based on the query using LangChain's agent-based routing."""
+        try:
+            # Use the agent to determine which tool to use
+            result = self.router_agent.invoke({"input": query})
+            # Extract the selected tool name from the result
+            selected_tool = result.get("output", "web_search")  # Default to web_search if no clear selection
+            return selected_tool
+        except Exception as e:
+            logger.error(f"Error in tool selection: {e}")
+            return "web_search"  # Fallback to web search on error
 
 
 def create_hybrid_agent(verbose=False):
@@ -151,15 +153,7 @@ def create_hybrid_agent(verbose=False):
     - If unsure, default to web_search
     - NEVER call the same tool multiple times for the same query
 
-    Format your response as:
-    Thought: Your reasoning about which tool to use
-    Action: The tool you've selected
-    Action Input: Your query for the tool
-    Thought: Your analysis of the response
-    Final Answer: Your final response to the user
-
-    Current Question: {input}
-    Thought: {agent_scratchpad}
+    Provide only the final answer to the user's question. Do not include any intermediate thoughts or observations.
     """
 
     prompt = PromptTemplate.from_template(template)
@@ -169,7 +163,7 @@ def create_hybrid_agent(verbose=False):
         tools=tools,
         llm=llm,
         agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-        verbose=verbose,
+        verbose=False,  # Set verbose to False to remove observation logs
         handle_parsing_errors=True,
         max_iterations=2,
         early_stopping_method="generate",

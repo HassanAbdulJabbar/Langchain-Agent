@@ -1,8 +1,8 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from langchain.agents import AgentType, initialize_agent
-from langchain.chains import LLMChain
+from langchain.chains.llm import LLMChain
 from langchain.prompts import PromptTemplate
 from langchain.tools import Tool
 
@@ -81,32 +81,20 @@ class WeatherAgent:
             # Get current weather data
             current_weather = self.weather_tool.get_current_weather(location)
 
-            # Prepare weather data for the LLM
-            weather_data = {
-                "temperature": current_weather.temperature,
-                "humidity": current_weather.humidity,
-                "wind_speed": current_weather.wind_speed,
-                "description": current_weather.description,
-                "location": location,
-            }
-
-            # Add air quality data if available
+            # Get air quality data
             try:
-                current_aqi = self.weather_tool.get_air_quality(location)
-                weather_data["air_quality"] = {
-                    "aqi": current_aqi["aqi"],
-                    "components": current_aqi["components"],
-                }
+                air_quality = self.weather_tool.get_air_quality(location)
+                aqi = air_quality["aqi"]
+                smog_level = air_quality["components"].get("pm2_5", 0)  # PM2.5 as smog level
             except Exception:
-                pass
+                aqi = "N/A"
+                smog_level = "N/A"
 
-            # Format the response based on the query type
-            if "temperature" in query.lower():
-                response = f"The current temperature in {location} is {weather_data['temperature']}°C."
-            elif "rain" in query.lower():
-                response = f"In {location}, the current conditions are {weather_data['description']}."
-            else:
-                response = f"Current weather in {location}: {weather_data['description']}, Temperature: {weather_data['temperature']}°C, Humidity: {weather_data['humidity']}%, Wind Speed: {weather_data['wind_speed']} km/h."
+            # Get current time
+            current_time = datetime.now().strftime("%H:%M")
+
+            # Format the response with all available data
+            response = f"According to the latest weather data, the current air quality index (AQI) in {location} is {aqi} and the smog level is {smog_level}. As of {current_time}, the weather conditions in {location} are {current_weather.description} with a temperature of {current_weather.temperature}°C, humidity of {current_weather.humidity}%, and wind speed of {current_weather.wind_speed} km/h. This information is provided by OpenWeatherMap."
 
             return response
 
